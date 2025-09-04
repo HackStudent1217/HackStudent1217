@@ -68,3 +68,61 @@ def download(tool):
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>ابزار ریکان اتوماتیک</title>
+</head>
+<body>
+  <h2>🔍 ابزار ریکان</h2>
+  <form method="POST">
+    <label>دامنه یا IP:</label>
+    <input type="text" name="target" required><br><br>
+
+    <label>انتخاب ابزار:</label><br>
+    {% for tool in tools %}
+      <input type="checkbox" name="tools" value="{{tool}}"> {{tool}}<br>
+    {% endfor %}
+    <br>
+    <button type="submit">شروع اسکن</button>
+  </form>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>نتایج ریکان</title>
+</head>
+<body>
+  <h2>🎯 نتایج برای: {{target}}</h2>
+  {% for tool, output in results.items() %}
+    <h3>⚡ {{tool}}</h3>
+    <pre>
+    {% for line in output %}
+      {{line}}
+    {% endfor %}
+    </pre>
+    <a href="/download/{{tool}}">📥 دانلود خروجی</a>
+    <hr>
+  {% endfor %}
+  <a href="/">⬅️ بازگشت</a>
+</body>
+</html>
