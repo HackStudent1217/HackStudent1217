@@ -1,1 +1,70 @@
+import os
+import subprocess
+from flask import Flask, render_template, request, send_file
+from datetime import datetime
 
+app = Flask(__name__)
+
+# 📂 پوشه ذخیره‌سازی نتایج
+RESULTS_DIR = "results"
+if not os.path.exists(RESULTS_DIR):
+    os.makedirs(RESULTS_DIR)
+
+# 📋 ابزارهایی که میخوایم اجرا کنیم
+TOOLS = {
+    "nmap": "nmap -sV -p- {target} -oN {output}",
+    "masscan": "masscan -p1-65535 {target} --rate=1000 -oL {output}",
+    "amass": "amass enum -d {target} -o {output}",
+    "assetfinder": "assetfinder {target} > {output}",
+    "subfinder": "subfinder -d {target} -o {output}",
+    "dnsx": "dnsx -d {target} -o {output}",
+    "httpx": "httpx -l {output}/subdomains.txt -o {output}/httpx.txt",
+    "waybackurls": "echo {target} | waybackurls > {output}",
+    "gau": "gau {target} > {output}",
+    "nikto": "nikto -h {target} -o {output}",
+    "nuclei": "nuclei -u {target} -o {output}"
+}
+
+def run_tool(tool, target):
+    """اجرای ابزارها با subprocess"""
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_file = os.path.join(RESULTS_DIR, f"{tool}_{timestamp}.txt")
+    command = TOOLS[tool].format(target=target, output=output_file)
+
+    try:
+        subprocess.run(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    except Exception as e:
+        with open(output_file, "w") as f:
+            f.write(f"[!] Error running {tool}: {str(e)}")
+
+    return output_file
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    if request.method == "POST":
+        target = request.form["target"]
+        selected_tools = request.form.getlist("tools")
+        results = {}
+
+        for tool in selected_tools:
+            output_file = run_tool(tool, target)
+            with open(output_file, "r", errors="ignore") as f:
+                results[tool] = f.read().splitlines()
+
+        return render_template("results.html", target=target, results=results)
+
+    return render_template("index.html", tools=TOOLS.keys())
+
+@app.route("/download/<tool>")
+def download(tool):
+    """دانلود خروجی ابزار"""
+    files = sorted(
+        [f for f in os.listdir(RESULTS_DIR) if f.startswith(tool)],
+        reverse=True
+    )
+    if files:
+        return send_file(os.path.join(RESULTS_DIR, files[0]), as_attachment=True)
+    return "No results found", 404
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8000, debug=True)
